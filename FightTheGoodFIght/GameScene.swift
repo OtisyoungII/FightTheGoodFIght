@@ -168,25 +168,37 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Create an explosion at the position of the bomb
         let explosion = SKSpriteNode(texture: explosionTextures[0])
         explosion.position = position
-        explosion.zPosition = 10
+        explosion.zPosition = 10 // Ensure the explosion is above other elements (paddle, bombs)
+
+        // Scale down the explosion (adjust the scale as needed)
+        explosion.xScale = 0.5  // Scale to 50% of the original size
+        explosion.yScale = 0.5  // Scale to 50% of the original size
+
         addChild(explosion)
-        
+
         // Animation for explosion
         let explodeAction = SKAction.sequence([
             SKAction.animate(with: explosionTextures, timePerFrame: 0.1),
+            SKAction.wait(forDuration: 0.2), // Allow slight delay before removal
             SKAction.removeFromParent()
         ])
         explosion.run(explodeAction)
-        
-        // Trigger explosions for all bombs on the screen
+
+        // Optionally trigger explosions for all bombs (if necessary, adjust this part)
         for bomb in bombs {
             let bombExplosion = SKSpriteNode(texture: explosionTextures[0])
             bombExplosion.position = bomb.position
-            bombExplosion.zPosition = 10
-            addChild(bombExplosion)
+            bombExplosion.zPosition = 10 // Ensure visibility above other elements
             
+            // Scale the bomb explosion too (adjust the scale as needed)
+            bombExplosion.xScale = 0.5
+            bombExplosion.yScale = 0.5
+
+            addChild(bombExplosion)
+
             let bombExplodeAction = SKAction.sequence([
                 SKAction.animate(with: explosionTextures, timePerFrame: 0.1),
+                SKAction.wait(forDuration: 0.2), // Slight delay before removal
                 SKAction.removeFromParent()
             ])
             bombExplosion.run(bombExplodeAction)
