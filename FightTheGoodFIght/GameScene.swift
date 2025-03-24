@@ -223,25 +223,41 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
    
    func didEnd(_ contact: SKPhysicsContact) {
        if contact.bodyA.categoryBitMask == PhysicsCategory.Bomb && contact.bodyB.categoryBitMask == PhysicsCategory.None {
-           // Bomb missed, lose life
+           // Bomb missed, trigger explosion and lose life
+           triggerExplosion(for: contact.bodyA.node!)
            lives -= 1
            lifeLabel.text = "Lives: \(lives)"
            
-           // Show explosion when bomb is missed
-           let explosion = SKSpriteNode(texture: explosionTextures.randomElement())
-           explosion.position = contact.bodyA.node!.position
-           addChild(explosion)
-           
-           // Animate the explosion
-           let fadeOut = SKAction.fadeOut(withDuration: 0.5)
-           let remove = SKAction.removeFromParent()
-           explosion.run(SKAction.sequence([fadeOut, remove]))
+           // Check if the game is over
+           if lives <= 0 {
+               gameOver()
+           }
+       } else if contact.bodyB.categoryBitMask == PhysicsCategory.Bomb && contact.bodyA.categoryBitMask == PhysicsCategory.None {
+           // Bomb missed, trigger explosion and lose life
+           triggerExplosion(for: contact.bodyB.node!)
+           lives -= 1
+           lifeLabel.text = "Lives: \(lives)"
            
            // Check if the game is over
            if lives <= 0 {
                gameOver()
            }
        }
+   }
+   
+   func triggerExplosion(for node: SKNode) {
+       // Create explosion effect
+       let explosion = SKSpriteNode(texture: explosionTextures.randomElement())
+       explosion.position = node.position
+       addChild(explosion)
+       
+       // Animate the explosion and remove it after a short time
+       let fadeOut = SKAction.fadeOut(withDuration: 0.5)
+       let remove = SKAction.removeFromParent()
+       explosion.run(SKAction.sequence([fadeOut, remove]))
+       
+       // Remove the bomb from the scene
+       node.removeFromParent()
    }
    
    // MARK: - Game Over Logic
