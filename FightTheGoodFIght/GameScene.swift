@@ -106,6 +106,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Make the Boss move horizontally
         bossGuy.run(SKAction.repeatForever(bossMoveAction))
         
+        
         // Pause Button Setup
         pauseButton = SKSpriteNode(imageNamed: "PauseButt")
         pauseButton.position = CGPoint(x: frame.maxX - 70, y: frame.height - 175) // Below the score part
@@ -186,6 +187,28 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             newBomb.position = CGPoint(x: bossGuy.position.x, y: bossGuy.position.y - 50) // perfectly under the BossGuy
             addChild(newBomb)
             bombs.append(newBomb)
+            // Boss horizontal movement action
+            let moveLeft = SKAction.moveBy(x: -frame.width + 100, y: 0, duration: 3.0) // Move across the full width of the screen
+            let moveRight = SKAction.moveBy(x: frame.width - 100, y: 0, duration: 3.0)
+            let stayInPlace = SKAction.wait(forDuration: 1.0) // Stay in place before moving again
+            let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
+            bossMoveAction = SKAction.repeatForever(randomMoveAction)
+            
+            // Boss Fake-out (don't drop bombs)
+            let fakeOut = SKAction.sequence([stayInPlace, stayInPlace]) // Boss doesn't drop bombs during fake-out
+            bossFakeOutAction = SKAction.repeatForever(fakeOut)
+            
+            // Make the Boss move horizontally and do fake-out
+            bossGuy.run(SKAction.repeatForever(bossMoveAction))
+            
+            // Increase difficulty over time
+            run(SKAction.repeatForever(
+                SKAction.sequence([
+                    SKAction.wait(forDuration: difficultyIncreaseTime),
+                    SKAction.run { self.increaseDifficulty() }
+                ])
+            ))
+            
             
             // Apply gravity to the bomb
             newBomb.physicsBody = SKPhysicsBody(rectangleOf: newBomb.size)
@@ -204,6 +227,54 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             bombTimer?.invalidate()
             bombTimer = Timer.scheduledTimer(timeInterval: bombDropInterval, target: self, selector: #selector(dropBomb), userInfo: nil, repeats: true)
         }
+        // MARK: - Trigger Explosion
+        func triggerExplosion(at position: CGPoint) {
+            // Create an explosion at the position of the bomb
+            let explosion = SKSpriteNode(texture: explosionTextures[0])
+            explosion.position = position
+            explosion.zPosition = 10 // Ensure the explosion is above other elements (paddle, bombs)
+            
+            // Scale down the explosion (adjust the scale as needed)
+            explosion.xScale = 0.5  // Scale to 50% of the original size
+            explosion.yScale = 0.5  // Scale to 50% of the original size
+            
+            addChild(explosion)
+            
+            // Animation for explosion
+            let explodeAction = SKAction.sequence([
+                SKAction.animate(with: explosionTextures, timePerFrame: 0.1),
+                SKAction.wait(forDuration: 0.2), // Allow slight delay before removal
+                SKAction.removeFromParent()
+            ])
+            explosion.run(explodeAction)
+            
+            // Optionally trigger explosions for all bombs (if necessary, adjust this part)
+            for bomb in bombs {
+                let bombExplosion = SKSpriteNode(texture: explosionTextures[0])
+                bombExplosion.position = bomb.position
+                bombExplosion.zPosition = 10 // Ensure visibility above other elements
+                
+                // Scale the bomb explosion too (adjust the scale as needed)
+                bombExplosion.xScale = 0.5
+                bombExplosion.yScale = 0.5
+                
+                addChild(bombExplosion)
+                
+                let bombExplodeAction = SKAction.sequence([
+                    SKAction.animate(with: explosionTextures, timePerFrame: 0.1),
+                    SKAction.wait(forDuration: 0.2), // Slight delay before removal
+                    SKAction.removeFromParent()
+                ])
+                bombExplosion.run(bombExplodeAction)
+            }
+        }
+    }
+    // MARK: - Increase Difficulty
+    func increaseDifficulty() {
+        difficultyIncreaseTime -= 1  // Shorten the interval between bomb drops (faster bombs)
+        
+        // Optionally, increase gravity or bomb drop speed, making the game harder
+        physicsWorld.gravity = CGVector(dx: 0, dy: -1 - CGFloat(difficultyIncreaseTime / 10)) // Increase gravity
     }
     
     // MARK: - Handle Touches (Pause Button, Ready Again Button, and Paddle)
