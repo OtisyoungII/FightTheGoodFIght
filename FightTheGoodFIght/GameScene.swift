@@ -108,14 +108,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Pause Button Setup
         pauseButton = SKSpriteNode(imageNamed: "PauseButt")
-        pauseButton.position = CGPoint(x: frame.maxX - 70, y: frame.height - 175) // Below the score
+        pauseButton.position = CGPoint(x: frame.maxX - 70, y: frame.height - 175) // Below the score part
         pauseButton.name = "PauseButt"
         pauseButton.size = CGSize(width: 100, height: 100) // Resize the pause button
         addChild(pauseButton)
         
         // Ready Again Button (Initially Hidden)
-        readyAgainButton = SKSpriteNode(color: .blue, size: CGSize(width: 150, height: 50)) // Resize the button
-        readyAgainButton.position = CGPoint(x: frame.midX, y: frame.midY - 100) // Adjust position to avoid score and lives
+        readyAgainButton = SKSpriteNode(color: .blue, size: CGSize(width: 150, height: 50)) // Resize the button here
+        readyAgainButton.position = CGPoint(x: frame.midX, y: frame.midY - 100) // Moved position to avoid score and lives
         readyAgainButton.name = "readyAgainButton"
         let readyLabel = SKLabelNode(text: "Ready Again?")
         readyLabel.fontSize = 24
@@ -125,6 +125,47 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         readyAgainButton.isHidden = true
         addChild(readyAgainButton)
     }
+    
+    // MARK: - Physics Contact Handling
+     func didBegin(_ contact: SKPhysicsContact) {
+         if contact.bodyA.categoryBitMask == PhysicsCategory.Paddle && contact.bodyB.categoryBitMask == PhysicsCategory.Bomb {
+             // Bomb caught
+             score += 10
+             scoreLabel.text = "Score: \(score)"
+             contact.bodyB.node?.removeFromParent()
+             bombs.removeAll { $0 == contact.bodyB.node as? SKSpriteNode }
+         } else if contact.bodyB.categoryBitMask == PhysicsCategory.Paddle && contact.bodyA.categoryBitMask == PhysicsCategory.Bomb {
+             // Bomb caught
+             score += 10
+             scoreLabel.text = "Score: \(score)"
+             contact.bodyA.node?.removeFromParent()
+             bombs.removeAll { $0 == contact.bodyA.node as? SKSpriteNode }
+         }
+     }
+     
+     func didEnd(_ contact: SKPhysicsContact) {
+         if contact.bodyA.categoryBitMask == PhysicsCategory.Bomb && contact.bodyB.categoryBitMask == PhysicsCategory.None {
+             // Bomb missed, lose life
+             lives -= 1
+             lifeLabel.text = "Lives: \(lives)"
+             
+             // Show explosion when bomb is missed
+             let explosion = SKSpriteNode(texture: explosionTextures.randomElement())
+             explosion.position = contact.bodyA.node!.position
+             addChild(explosion)
+             
+             // Animate the explosion
+             let fadeOut = SKAction.fadeOut(withDuration: 0.5)
+             let remove = SKAction.removeFromParent()
+             explosion.run(SKAction.sequence([fadeOut, remove]))
+             
+             // Check if the game is over
+             if lives <= 0 {
+                 gameOver()
+             }
+         }
+     }
+     
     
     // MARK: - Load Explosion Textures
     func loadExplosionTextures() {
@@ -142,7 +183,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         for _ in 0..<bombsToDrop {
             let newBomb = SKSpriteNode(imageNamed: "Record")
             newBomb.size = CGSize(width: 70, height: 70) // Set bomb size to 70x70
-            newBomb.position = CGPoint(x: bossGuy.position.x, y: bossGuy.position.y - 50) // Directly under the BossGuy
+            newBomb.position = CGPoint(x: bossGuy.position.x, y: bossGuy.position.y - 50) // perfectly under the BossGuy
             addChild(newBomb)
             bombs.append(newBomb)
             
