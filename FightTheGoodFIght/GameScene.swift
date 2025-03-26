@@ -18,7 +18,7 @@ struct PhysicsCategory {
 }
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
-   
+    
     // MARK: - Properties
     var paddle: SKSpriteNode!
     var bombs: [SKSpriteNode] = []
@@ -36,7 +36,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var bombDropInterval: TimeInterval = 1.5
     var screenWidth: CGFloat!
     var safeAreaWidth: CGFloat!
-    
+    var safeArea: UIEdgeInsets!
+    var gameRunning = true
     // MARK: - UI Elements
     var readyAgainButton: SKSpriteNode!
     var pauseButton: SKSpriteNode!
@@ -96,17 +97,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         bossGuy.position = CGPoint(x: frame.midX, y: frame.height - 150)
         addChild(bossGuy)
         
-        // Boss horizontal movement action
-        let moveLeft = SKAction.moveBy(x: -safeAreaWidth / 2, y: 0, duration: 4.0)
-        let moveRight = SKAction.moveBy(x: safeAreaWidth / 2, y: 0, duration: 4.0)
-        let stayInPlace = SKAction.wait(forDuration: 1.0)
-        let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
-        bossMoveAction = SKAction.repeatForever(randomMoveAction)
-        
-        // Make the Boss move horizontally
-        bossGuy.run(SKAction.repeatForever(bossMoveAction))
-        
-        
         // Pause Button Setup
         pauseButton = SKSpriteNode(imageNamed: "PauseButt")
         pauseButton.position = CGPoint(x: frame.maxX - 70, y: frame.height - 175) // Below the score part
@@ -128,45 +118,77 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     // MARK: - Physics Contact Handling
-     func didBegin(_ contact: SKPhysicsContact) {
-         if contact.bodyA.categoryBitMask == PhysicsCategory.Paddle && contact.bodyB.categoryBitMask == PhysicsCategory.Bomb {
-             // Bomb caught
-             score += 10
-             scoreLabel.text = "Score: \(score)"
-             contact.bodyB.node?.removeFromParent()
-             bombs.removeAll { $0 == contact.bodyB.node as? SKSpriteNode }
-         } else if contact.bodyB.categoryBitMask == PhysicsCategory.Paddle && contact.bodyA.categoryBitMask == PhysicsCategory.Bomb {
-             // Bomb caught
-             score += 10
-             scoreLabel.text = "Score: \(score)"
-             contact.bodyA.node?.removeFromParent()
-             bombs.removeAll { $0 == contact.bodyA.node as? SKSpriteNode }
-         }
-     }
-     
-     func didEnd(_ contact: SKPhysicsContact) {
-         if contact.bodyA.categoryBitMask == PhysicsCategory.Bomb && contact.bodyB.categoryBitMask == PhysicsCategory.None {
-             // Bomb missed, lose life
-             lives -= 1
-             lifeLabel.text = "Lives: \(lives)"
-             
-             // Show explosion when bomb is missed
-             let explosion = SKSpriteNode(texture: explosionTextures.randomElement())
-             explosion.position = contact.bodyA.node!.position
-             addChild(explosion)
-             
-             // Animate the explosion
-             let fadeOut = SKAction.fadeOut(withDuration: 0.5)
-             let remove = SKAction.removeFromParent()
-             explosion.run(SKAction.sequence([fadeOut, remove]))
-             
-             // Check if the game is over
-             if lives <= 0 {
-                 gameOver()
-             }
-         }
-     }
-     
+    func didBegin(_ contact: SKPhysicsContact) {
+        if contact.bodyA.categoryBitMask == PhysicsCategory.Paddle && contact.bodyB.categoryBitMask == PhysicsCategory.Bomb {
+            // Bomb caught
+            score += 10
+            scoreLabel.text = "Score: \(score)"
+            contact.bodyB.node?.removeFromParent()
+            bombs.removeAll { $0 == contact.bodyB.node as? SKSpriteNode }
+            
+            // Trigger explosion on bomb catch
+            if let bombNode = contact.bodyB.node {
+                triggerExplosion(at: bombNode.position)
+            }
+        } else if contact.bodyB.categoryBitMask == PhysicsCategory.Paddle && contact.bodyA.categoryBitMask == PhysicsCategory.Bomb {
+            // Bomb caught
+            score += 10
+            scoreLabel.text = "Score: \(score)"
+            contact.bodyA.node?.removeFromParent()
+            bombs.removeAll { $0 == contact.bodyA.node as? SKSpriteNode }
+            
+            // Trigger explosion on bomb catch
+            if let bombNode = contact.bodyA.node {
+                triggerExplosion(at: bombNode.position)
+            }
+        }
+    }
+    
+    func didEnd(_ contact: SKPhysicsContact) {
+        if contact.bodyA.categoryBitMask == PhysicsCategory.Bomb && contact.bodyB.categoryBitMask == PhysicsCategory.None {
+            if let bombNode = contact.bodyA.node {
+                if bombNode.position.y <= frame.minY {
+                    // Bomb missed, lose a life
+                    lives -= 1
+                    lifeLabel.text = "Lives: \(lives)"
+                    
+                    // Show explosion when bomb is missed
+                    triggerExplosion(at: bombNode.position)
+
+                    // Check if the game is over
+                    if lives <= 0 {
+                        gameOver()
+                    }
+
+                    // Remove the bomb from the scene
+                    bombNode.removeFromParent()
+                    bombs.removeAll { $0 == bombNode as? SKSpriteNode }
+                }
+            }
+        }
+        
+        if contact.bodyB.categoryBitMask == PhysicsCategory.Bomb && contact.bodyA.categoryBitMask == PhysicsCategory.None {
+            if let bombNode = contact.bodyB.node {
+                if bombNode.position.y <= frame.minY {
+                    // Bomb missed, lose a life
+                    lives -= 1
+                    lifeLabel.text = "Lives: \(lives)"
+                    
+                    // Show explosion when bomb is missed
+                    triggerExplosion(at: bombNode.position)
+
+                    // Check if the game is over
+                    if lives <= 0 {
+                        gameOver()
+                    }
+
+                    // Remove the bomb from the scene
+                    bombNode.removeFromParent()
+                    bombs.removeAll { $0 == bombNode as? SKSpriteNode }
+                }
+            }
+        }
+    }
     
     // MARK: - Load Explosion Textures
     func loadExplosionTextures() {
@@ -176,41 +198,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         explosionTextures = [explosion1, explosion2, explosion3]
     }
     
-    // MARK: - Drop Bombs
     @objc func dropBomb() {
-        // Drop bombs directly under the BossGuy's position
+        // Drop bombs at random positions along the screen width
         let bombsToDrop = min(3, bombCount)
         
+        if let isPaused = true {let bombsToDrop = 0}
+        
         for _ in 0..<bombsToDrop {
+            // Create a new bomb
             let newBomb = SKSpriteNode(imageNamed: "Record")
-            newBomb.size = CGSize(width: 70, height: 70) // Set bomb size to 70x70
-            newBomb.position = CGPoint(x: bossGuy.position.x, y: bossGuy.position.y - 50) // perfectly under the BossGuy
+            newBomb.size = CGSize(width: 70, height: 70)
+            
+            // Randomize the X position for the bomb drop, ensuring it stays within screen bounds
+            let randomX = CGFloat.random(in: frame.minX + newBomb.size.width / 2...frame.maxX - newBomb.size.width / 2)
+            newBomb.position = CGPoint(x: randomX, y: frame.maxY)  // Drop from the top of the screen
+            
+            // Add bomb to the scene
             addChild(newBomb)
             bombs.append(newBomb)
-            // Boss horizontal movement action
-            let moveLeft = SKAction.moveBy(x: -frame.width + 100, y: 0, duration: 3.0) // Move across the full width of the screen
-            let moveRight = SKAction.moveBy(x: frame.width - 100, y: 0, duration: 3.0)
-            let stayInPlace = SKAction.wait(forDuration: 1.0) // Stay in place before moving again
-            let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
-            bossMoveAction = SKAction.repeatForever(randomMoveAction)
             
-            // Boss Fake-out (don't drop bombs)
-            let fakeOut = SKAction.sequence([stayInPlace, stayInPlace]) // Boss doesn't drop bombs during fake-out
-            bossFakeOutAction = SKAction.repeatForever(fakeOut)
-            
-            // Make the Boss move horizontally and do fake-out
-            bossGuy.run(SKAction.repeatForever(bossMoveAction))
-            
-            // Increase difficulty over time
-            run(SKAction.repeatForever(
-                SKAction.sequence([
-                    SKAction.wait(forDuration: difficultyIncreaseTime),
-                    SKAction.run { self.increaseDifficulty() }
-                ])
-            ))
-            
-            
-            // Apply gravity to the bomb
+            // Apply physics to the bomb
             newBomb.physicsBody = SKPhysicsBody(rectangleOf: newBomb.size)
             newBomb.physicsBody?.affectedByGravity = true
             newBomb.physicsBody?.categoryBitMask = PhysicsCategory.Bomb
@@ -227,48 +234,33 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             bombTimer?.invalidate()
             bombTimer = Timer.scheduledTimer(timeInterval: bombDropInterval, target: self, selector: #selector(dropBomb), userInfo: nil, repeats: true)
         }
-        // MARK: - Trigger Explosion
-        func triggerExplosion(at position: CGPoint) {
-            // Create an explosion at the position of the bomb
-            let explosion = SKSpriteNode(texture: explosionTextures[0])
-            explosion.position = position
-            explosion.zPosition = 10 // Ensure the explosion is above other elements (paddle, bombs)
-            
-            // Scale down the explosion (adjust the scale as needed)
-            explosion.xScale = 0.5  // Scale to 50% of the original size
-            explosion.yScale = 0.5  // Scale to 50% of the original size
-            
-            addChild(explosion)
-            
-            // Animation for explosion
-            let explodeAction = SKAction.sequence([
-                SKAction.animate(with: explosionTextures, timePerFrame: 0.1),
-                SKAction.wait(forDuration: 0.2), // Allow slight delay before removal
-                SKAction.removeFromParent()
-            ])
-            explosion.run(explodeAction)
-            
-            // Optionally trigger explosions for all bombs (if necessary, adjust this part)
-            for bomb in bombs {
-                let bombExplosion = SKSpriteNode(texture: explosionTextures[0])
-                bombExplosion.position = bomb.position
-                bombExplosion.zPosition = 10 // Ensure visibility above other elements
-                
-                // Scale the bomb explosion too (adjust the scale as needed)
-                bombExplosion.xScale = 0.5
-                bombExplosion.yScale = 0.5
-                
-                addChild(bombExplosion)
-                
-                let bombExplodeAction = SKAction.sequence([
-                    SKAction.animate(with: explosionTextures, timePerFrame: 0.1),
-                    SKAction.wait(forDuration: 0.2), // Slight delay before removal
-                    SKAction.removeFromParent()
-                ])
-                bombExplosion.run(bombExplodeAction)
-            }
-        }
     }
+    
+    // MARK: - Trigger Explosion Function
+    func triggerExplosion(at position: CGPoint) {
+        // Create an explosion at the position of the bomb
+        let explosion = SKSpriteNode(texture: explosionTextures[0])
+        explosion.position = position
+        explosion.zPosition = 10 // Ensure the explosion is above other elements (paddle, bombs)
+        
+        // No physics body needed for explosion
+        explosion.physicsBody = nil
+        
+        // Scale down the explosion (adjust the scale as needed)
+        explosion.xScale = 0.5  // Scale to 50% of the original size
+        explosion.yScale = 0.5  // Scale to 50% of the original size
+        
+        addChild(explosion)
+        
+        // Animation for explosion
+        let explodeAction = SKAction.sequence([
+            SKAction.animate(with: explosionTextures, timePerFrame: 0.1),
+            SKAction.wait(forDuration: 0.2), // Allow slight delay before removal
+            SKAction.removeFromParent()
+        ])
+        explosion.run(explodeAction)
+    }
+
     // MARK: - Increase Difficulty
     func increaseDifficulty() {
         difficultyIncreaseTime -= 1  // Shorten the interval between bomb drops (faster bombs)
@@ -281,7 +273,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         let touchLocation = touch.location(in: self)
-
+        
         // Pause Button
         if pauseButton.contains(touchLocation) {
             // Toggle the pause state
@@ -304,17 +296,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             return
         }
-
-        // Ready Again Button
-        if readyAgainButton.contains(touchLocation) {
+        
+        // Ready Again Button (only handle touch when game is over)
+        if readyAgainButton.contains(touchLocation) && isPaused {
             resetGame()
         }
-
+        
         // Prevent Paddle Movement if Game is Paused
         if isPaused {
             return
         }
-
+        
         // Move the paddle (Catcher)
         let location = touch.location(in: self)
         paddle.position.x = location.x
@@ -350,6 +342,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Reset BossGuy position and movement
         bossGuy.position = CGPoint(x: frame.midX, y: frame.height - 150)
+        
+        // Set up BossGuy movement action again
+        let moveLeft = SKAction.moveBy(x: -frame.width / 2 + bossGuy.size.width / 2, y: 0, duration: 4.0)
+        let moveRight = SKAction.moveBy(x: frame.width / 2 - bossGuy.size.width / 2, y: 0, duration: 4.0)
+        let stayInPlace = SKAction.wait(forDuration: 1.0)
+        
+        let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
+        bossMoveAction = SKAction.repeatForever(randomMoveAction)
+        
         bossGuy.run(SKAction.repeatForever(bossMoveAction))
         
         // Resume game
