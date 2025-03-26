@@ -118,7 +118,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     @objc func dropBomb() {
         // Drop up to 2 bombs at a time from BossGuy, limited to the width of the paddle
         for _ in 0..<min(2, bombCount) {
-            let newBomb = SKSpriteNode(imageNamed: "Record")
+            let newBomb = SKSpriteNode(imageNamed: "Records")
             newBomb.size = CGSize(width: 70, height: 70) // Set bomb size to 70x70
             newBomb.position = CGPoint(x: bossGuy.position.x + CGFloat.random(in: -50..<50), y: bossGuy.position.y - 50)
             addChild(newBomb)
