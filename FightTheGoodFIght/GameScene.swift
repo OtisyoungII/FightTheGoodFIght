@@ -11,6 +11,8 @@ import GameplayKit
 
 // MARK: - Physics Categories
 struct PhysicsCategory {
+    
+    
     static let None: UInt32 = 0
     static let Paddle: UInt32 = 0b1        // 1
     static let Bomb: UInt32 = 0b10         // 2
@@ -36,7 +38,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var bombDropInterval: TimeInterval = 1.5
     var screenWidth: CGFloat!
     var safeAreaWidth: CGFloat!
-    var safeArea: UIEdgeInsets!
+    
     // MARK: - UI Elements
     var readyAgainButton: SKSpriteNode!
     var pauseButton: SKSpriteNode!
@@ -96,6 +98,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         bossGuy.position = CGPoint(x: frame.midX, y: frame.height - 150)
         addChild(bossGuy)
         
+        // Boss horizontal movement action
+        let moveLeft = SKAction.moveBy(x: -safeAreaWidth / 2, y: 0, duration: 4.0)
+        let moveRight = SKAction.moveBy(x: safeAreaWidth / 2, y: 0, duration: 4.0)
+        let stayInPlace = SKAction.wait(forDuration: 1.0)
+        let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
+        bossMoveAction = SKAction.repeat(randomMoveAction, count: 2)
+        
+        // Make the Boss move horizontally
+        bossGuy.run(SKAction.repeat(bossMoveAction, count: .random(in: 1...4)))
         
         
         // Pause Button Setup
@@ -167,6 +178,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         explosionTextures = [explosion1, explosion2, explosion3]
     }
     
+    // MARK: - Drop Bombs
     @objc func dropBomb() {
         // Drop bombs directly under the BossGuy's position
         let bombsToDrop = min(3, bombCount)
@@ -177,30 +189,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             newBomb.position = CGPoint(x: bossGuy.position.x, y: bossGuy.position.y - 50) // perfectly under the BossGuy
             addChild(newBomb)
             bombs.append(newBomb)
-            
-            // Boss horizontal movement action with bounds checking
-            let moveLeft = SKAction.moveBy(x: -frame.width / 2 + bossGuy.size.width / 2, y: 0, duration: 4.0)
-            let moveRight = SKAction.moveBy(x: frame.width / 2 - bossGuy.size.width / 2, y: 0, duration: 4.0)
-            let stayInPlace = SKAction.wait(forDuration: 1.0)
-            
+            // Boss horizontal movement action
+            let moveLeft = SKAction.moveBy(x: -safeAreaWidth + 100, y: 0, duration: 3.0) // Move across the full width of the screen
+            let moveRight = SKAction.moveBy(x: safeAreaWidth - 100, y: 0, duration: 3.0)
+            let stayInPlace = SKAction.wait(forDuration: 2.0) // Stay in place before moving again
             let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
             bossMoveAction = SKAction.repeatForever(randomMoveAction)
             
-            // Correct the bounds check for screen edges
-            let screenLeft = frame.minX + bossGuy.size.width / 2
-            let screenRight = frame.maxX - bossGuy.size.width / 2
+            // Boss Fake-out (don't drop bombs)
+            let fakeOut = SKAction.sequence([stayInPlace, stayInPlace]) // Boss doesn't drop bombs during fake-out
+            bossFakeOutAction = SKAction.repeatForever(fakeOut)
             
-            // Check if the BossGuy is about to move off-screen and reverse direction
-            if bossGuy.position.x - bossGuy.size.width / 2 <= screenLeft {
-                // Reverse direction if BossGuy is about to move off the left screen boundary
-                bossGuy.run(SKAction.sequence([moveRight, stayInPlace, moveLeft, stayInPlace]))
-            } else if bossGuy.position.x + bossGuy.size.width / 2 >= screenRight {
-                // Reverse direction if BossGuy is about to move off the right screen boundary
-                bossGuy.run(SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace]))
-            } else {
-                // Regular horizontal movement
-                bossGuy.run(SKAction.repeatForever(bossMoveAction))
-            }
+
             
             // Increase difficulty over time
             run(SKAction.repeatForever(
@@ -209,6 +209,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     SKAction.run { self.increaseDifficulty() }
                 ])
             ))
+            
             
             // Apply gravity to the bomb
             newBomb.physicsBody = SKPhysicsBody(rectangleOf: newBomb.size)
@@ -227,8 +228,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             bombTimer?.invalidate()
             bombTimer = Timer.scheduledTimer(timeInterval: bombDropInterval, target: self, selector: #selector(dropBomb), userInfo: nil, repeats: true)
         }
-    
-        
         // MARK: - Trigger Explosion
         func triggerExplosion(at position: CGPoint) {
             // Create an explosion at the position of the bomb
@@ -307,8 +306,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
         
-        // Ready Again Button (only handle touch when game is over)
-        if readyAgainButton.contains(touchLocation) && isPaused {
+        // Ready Again Button
+        if readyAgainButton.contains(touchLocation) {
             resetGame()
         }
         
@@ -321,6 +320,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let location = touch.location(in: self)
         paddle.position.x = location.x
     }
+
     
     // MARK: - Game Over and Reset Logic
     func gameOver() {
@@ -352,18 +352,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Reset BossGuy position and movement
         bossGuy.position = CGPoint(x: frame.midX, y: frame.height - 150)
-        
-        // Set up BossGuy movement action again
-        let moveLeft = SKAction.moveBy(x: -frame.width / 2 + bossGuy.size.width / 2, y: 0, duration: 4.0)
-        let moveRight = SKAction.moveBy(x: frame.width / 2 - bossGuy.size.width / 2, y: 0, duration: 4.0)
-        let stayInPlace = SKAction.wait(forDuration: 1.0)
-        
-        let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
-        bossMoveAction = SKAction.repeatForever(randomMoveAction)
-        
         bossGuy.run(SKAction.repeatForever(bossMoveAction))
         
         // Resume game
         isPaused = false
     }
 }
+
