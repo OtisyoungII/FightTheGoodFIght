@@ -198,18 +198,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             // Boss Fake-out (don't drop bombs)
             let fakeOut = SKAction.sequence([stayInPlace, stayInPlace]) // Boss doesn't drop bombs during fake-out
-            bossFakeOutAction = SKAction.repeatForever(fakeOut)
+            bossFakeOutAction = SKAction.repeat(fakeOut, count: 2)
+            
+            
             
 
-            
-            // Increase difficulty over time
-            run(SKAction.repeatForever(
-                SKAction.sequence([
-                    SKAction.wait(forDuration: difficultyIncreaseTime),
-                    SKAction.run { self.increaseDifficulty() }
-                ])
-            ))
-            
             
             // Apply gravity to the bomb
             newBomb.physicsBody = SKPhysicsBody(rectangleOf: newBomb.size)
@@ -320,7 +313,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let location = touch.location(in: self)
         paddle.position.x = location.x
     }
-
+    
     
     // MARK: - Game Over and Reset Logic
     func gameOver() {
@@ -356,6 +349,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Resume game
         isPaused = false
+            return
+        }
     }
-}
+    
 
