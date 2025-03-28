@@ -102,11 +102,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let moveLeft = SKAction.moveBy(x: -safeAreaWidth / 2, y: 0, duration: 4.0)
         let moveRight = SKAction.moveBy(x: safeAreaWidth / 2, y: 0, duration: 4.0)
         let stayInPlace = SKAction.wait(forDuration: 1.0)
-        let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
-        bossMoveAction = SKAction.repeat(randomMoveAction, count: 2)
+        let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace, moveRight, stayInPlace, moveLeft, stayInPlace])
+        bossMoveAction = SKAction.repeatForever(randomMoveAction)
         
         // Make the Boss move horizontally
-        bossGuy.run(SKAction.repeat(bossMoveAction, count: .random(in: 1...4)))
+        bossGuy.run(SKAction.repeatForever(bossMoveAction))
         
         
         // Pause Button Setup
@@ -189,18 +189,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             newBomb.position = CGPoint(x: bossGuy.position.x, y: bossGuy.position.y - 50) // perfectly under the BossGuy
             addChild(newBomb)
             bombs.append(newBomb)
-            // Boss horizontal movement action
-            let moveLeft = SKAction.moveBy(x: -safeAreaWidth + 100, y: 0, duration: 3.0) // Move across the full width of the screen
-            let moveRight = SKAction.moveBy(x: safeAreaWidth - 100, y: 0, duration: 3.0)
-            let stayInPlace = SKAction.wait(forDuration: 2.0) // Stay in place before moving again
-            let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
-            bossMoveAction = SKAction.repeatForever(randomMoveAction)
-            
-            // Boss Fake-out (don't drop bombs)
-            let fakeOut = SKAction.sequence([stayInPlace, stayInPlace]) // Boss doesn't drop bombs during fake-out
-            bossFakeOutAction = SKAction.repeat(fakeOut, count: 2)
-            
-            
+//            // Boss horizontal movement action
+//            let moveLeft = SKAction.moveBy(x: -safeAreaWidth + 100, y: 0, duration: 3.0) // Move across the full width of the screen
+//            let moveRight = SKAction.moveBy(x: safeAreaWidth - 100, y: 0, duration: 3.0)
+//            let stayInPlace = SKAction.wait(forDuration: 2.0) // Stay in place before moving again
+//            let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
+//            bossMoveAction = SKAction.repeatForever(randomMoveAction)
+//            
+//            // Boss Fake-out (don't drop bombs)
+//            let fakeOut = SKAction.sequence([stayInPlace, stayInPlace]) // Boss doesn't drop bombs during fake-out
+//            bossFakeOutAction = SKAction.repeat(fakeOut, count: 2)
+//            
+//            
             
 
             
