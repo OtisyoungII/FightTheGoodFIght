@@ -189,20 +189,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             newBomb.position = CGPoint(x: bossGuy.position.x, y: bossGuy.position.y - 50) // perfectly under the BossGuy
             addChild(newBomb)
             bombs.append(newBomb)
-//            // Boss horizontal movement action
-//            let moveLeft = SKAction.moveBy(x: -safeAreaWidth + 100, y: 0, duration: 3.0) // Move across the full width of the screen
-//            let moveRight = SKAction.moveBy(x: safeAreaWidth - 100, y: 0, duration: 3.0)
-//            let stayInPlace = SKAction.wait(forDuration: 2.0) // Stay in place before moving again
-//            let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
-//            bossMoveAction = SKAction.repeatForever(randomMoveAction)
-//            
-//            // Boss Fake-out (don't drop bombs)
-//            let fakeOut = SKAction.sequence([stayInPlace, stayInPlace]) // Boss doesn't drop bombs during fake-out
-//            bossFakeOutAction = SKAction.repeat(fakeOut, count: 2)
-//            
-//            
+            //            // Boss horizontal movement action
+            //            let moveLeft = SKAction.moveBy(x: -safeAreaWidth + 100, y: 0, duration: 3.0) // Move across the full width of the screen
+            //            let moveRight = SKAction.moveBy(x: safeAreaWidth - 100, y: 0, duration: 3.0)
+            //            let stayInPlace = SKAction.wait(forDuration: 2.0) // Stay in place before moving again
+            //            let randomMoveAction = SKAction.sequence([moveLeft, stayInPlace, moveRight, stayInPlace])
+            //            bossMoveAction = SKAction.repeatForever(randomMoveAction)
+            //
+            //            // Boss Fake-out (don't drop bombs)
+            //            let fakeOut = SKAction.sequence([stayInPlace, stayInPlace]) // Boss doesn't drop bombs during fake-out
+            //            bossFakeOutAction = SKAction.repeat(fakeOut, count: 2)
+            //
+            //
             
-
+            
             
             // Apply gravity to the bomb
             newBomb.physicsBody = SKPhysicsBody(rectangleOf: newBomb.size)
@@ -271,7 +271,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         physicsWorld.gravity = CGVector(dx: 0, dy: -1 - CGFloat(difficultyIncreaseTime / 10)) // Increase gravity
     }
     
-    // MARK: - Handle Touches (Pause Button, Ready Again Button, and Paddle)
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         let touchLocation = touch.location(in: self)
@@ -288,12 +287,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 
                 // Stop BossGuy movement when paused
                 bossGuy.removeAction(forKey: "bossMoveAction")
+                
+                // Invalidate the bomb timer to stop bombs from dropping
+                bombTimer?.invalidate()
             } else {
                 // Set to unpressed state when game is unpaused
                 pauseButton.texture = SKTexture(imageNamed: "PauseButt")
                 
                 // Resume BossGuy movement when unpaused
                 bossGuy.run(bossMoveAction, withKey: "bossMoveAction")
+                
+                // Restart the bomb timer when the game is unpaused
+                bombTimer = Timer.scheduledTimer(timeInterval: bombDropInterval, target: self, selector: #selector(dropBomb), userInfo: nil, repeats: true)
             }
             
             return
@@ -307,50 +312,48 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Prevent Paddle Movement if Game is Paused
         if isPaused {
             return
+            
+            
+            // Move the paddle (Catcher)
+            let location = touch.location(in: self)
+            paddle.position.x = location.x
+        }
+        // MARK: - Game Over and Reset Logic
+        func gameOver() {
+            // Pause the game
+            isPaused = true
+            
+            // Show "Ready Again?" button
+            readyAgainButton.isHidden = false
         }
         
-        // Move the paddle (Catcher)
-        let location = touch.location(in: self)
-        paddle.position.x = location.x
-    }
-    
-    
-    // MARK: - Game Over and Reset Logic
-    func gameOver() {
-        // Pause the game
-        isPaused = true
-        
-        // Show "Ready Again?" button
-        readyAgainButton.isHidden = false
-    }
-    
-    func resetGame() {
-        // Reset score, lives, and other properties
-        score = 0
-        lives = 3
-        scoreLabel.text = "Score: \(score)"
-        lifeLabel.text = "Lives: \(lives)"
-        
-        // Hide Ready Again button
-        readyAgainButton.isHidden = true
-        
-        // Reset paddle position
-        paddle.position = CGPoint(x: frame.midX, y: 50)
-        
-        // Remove all bombs
-        for bomb in bombs {
-            bomb.removeFromParent()
-        }
-        bombs.removeAll()
-        
-        // Reset BossGuy position and movement
-        bossGuy.position = CGPoint(x: frame.midX, y: frame.height - 150)
-        bossGuy.run(SKAction.repeatForever(bossMoveAction))
-        
-        // Resume game
-        isPaused = false
+        func resetGame() {
+            // Reset score, lives, and other properties
+            score = 0
+            lives = 3
+            scoreLabel.text = "Score: \(score)"
+            lifeLabel.text = "Lives: \(lives)"
+            
+            // Hide Ready Again button
+            readyAgainButton.isHidden = true
+            
+            // Reset paddle position
+            paddle.position = CGPoint(x: frame.midX, y: 50)
+            
+            // Remove all bombs
+            for bomb in bombs {
+                bomb.removeFromParent()
+            }
+            bombs.removeAll()
+            
+            // Reset BossGuy position and movement
+            bossGuy.position = CGPoint(x: frame.midX, y: frame.height - 150)
+            bossGuy.run(SKAction.repeatForever(bossMoveAction))
+            
+            // Resume game
+            isPaused = false
             return
         }
     }
     
-
+}
